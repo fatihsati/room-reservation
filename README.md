@@ -6,7 +6,7 @@ Room reservation systems using Socket programming
 
 - [x] Room Server
 - [x] Activity Server
-- [] Reservation Server
-- [] Json handler operations
+- [ ] Reservation Server
+- [ ] Json handler operations
 
 **Json handler fonksiyonlarının içine input olarak ne alıp neyi return edeceklerini yazdım, Reservation server fonkisonları yok onları da eklerim.**
