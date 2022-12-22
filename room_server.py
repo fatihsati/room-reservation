@@ -36,18 +36,23 @@ def parse_room_server_message(message):
     print(operation, parameters)
     return operation, parameters
 
-def create_HTML(operation, parameters):
-
+def create_HTML(operation, parameters, code):
+    """create html response according to the operation and parameters,
+        also change response code and the message according to the case.
+        case1: code=403 operation is add or remove, room does not exist."""
     html = f"HTTP/1.1 200 OK\r\n\n<HTML> <HEAD> <TITLE>Room {operation}</TITLE> </HEAD> <BODY> Room with name {parameters['name']} is successfully {operation}.</BODY> </HTML>"
     return html
 
 while True:
-    connectionSocket, addr = serverSocket.accept()
-    message = connectionSocket.recv(1024)
+    try:
+        connectionSocket, addr = serverSocket.accept()
+        message = connectionSocket.recv(1024)
 
-    operation, roomname = parse_room_server_message(message.decode())
-    html = create_HTML(operation, roomname)
-    respone = f"\rHTTP/1.1 200 OK\r\n\nThe {operation} operation is recieved.\r\nRoom {roomname} is added.\r".encode()
+        operation, parameters = parse_room_server_message(message.decode())
+        html = create_HTML(operation, parameters)
+    except:
+        # return an error occured message instead.
+        html = create_HTML('error', {'name': 'error'})
     connectionSocket.send(html.encode())
     connectionSocket.close()
 
