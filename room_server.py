@@ -2,7 +2,7 @@ from socket import *
 import re
 import json_handler
 
-serverPort = 12000
+serverPort = 8000
 serverSocket = socket(AF_INET, SOCK_STREAM)
 serverSocket.bind(('', serverPort))
 serverSocket.listen(1)
