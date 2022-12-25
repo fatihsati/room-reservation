@@ -63,3 +63,11 @@ def reservation_reserve(roomname, activityname, day, hour, duration):
     # return 200, reservation_id
     
     return 200, 1
+
+def display_reservation(reservation_id):
+    # display reservation information from the json file
+    # if reservation_id does not exits return 404, None
+    # else return 200, reservation information
+    
+    # reservation information should be in the following format:
+    return 200, "roomname,activityname,day,hour,duration" 

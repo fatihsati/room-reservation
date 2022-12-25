@@ -6,7 +6,7 @@ serverPort = 8002
 serverSocket = socket(AF_INET, SOCK_STREAM)
 serverSocket.bind(('', serverPort))
 serverSocket.listen(1)
-print('The Activity server is ready to receive', serverSocket.getsockname())
+print('The Reservation server is ready to receive', serverSocket.getsockname())
 
 servername_to_port = {'room': 8000,
                       'activity': 8001}
@@ -91,14 +91,63 @@ def reserve_operation(roomname, activityname, day, hour, duration):
 
     return title_message, body_message, room_status_code, response_message
 
+def listavailability_operation(roomname, day):
+
+    roomname_response = send_request_to_another_server('room', f'checkavailability?name={roomname}&day={day}')
+    header, message = roomname_response.split('\r\n\n')
+
+    room_status_code = int(header.split(' ')[1])
+    room_response_message = header.split(' ')[2]
+    # get room server response, parse it and return the response to the client
+    title_message = re.search(r'<TITLE>(.*)<\/TITLE>', message).group(1)
+    body_message = re.search(r'<BODY>(.*)<\/BODY>', message).group(1)
+    
+        
+    return title_message, body_message, room_status_code, room_response_message
+
+def display_operation(reservation_id):
+    #//TODO: day should be converted to Monday, Tuesday... 
+    #//TODO: # day, hour, duration should change to: "When: Friday 10:00-11:00" 
+    
+    status_code, reservation_information = json_handler.display_reservation(reservation_id)
+    
+    if status_code == 200:
+        
+        roomname, activityname, day, hour, duration = reservation_information.split(',')
+        title_message = 'Reservation Information'
+        body_message = f'Room: {roomname}\nActivity: {activityname}\nDay: {day}\nHour: {hour}\nDuration: {duration}'
+        response_message = 'OK'
+        
+    else:
+        title_message = 'Reservation Not Found'
+        body_message = f'Reservation with {reservation_id} id does not exist.'
+        response_message = 'Not Found'
+        
+    return title_message, body_message, status_code, response_message
+
 def create_HTML(operation, parameters):
     
     if operation == 'reserve':
         roomname, activityname, day, hour, duration = parameters['room'], parameters['activity'], parameters['day'], parameters['hour'], parameters['duration']
         title_message, body_message, status_code, response_message = reserve_operation(roomname, activityname, day, hour, duration)
     
+    elif operation == 'listavailability':
+        if 'day' in parameters: # if day is given, list availability for that day
+            roomname, day = parameters['room'], parameters['day']
+            title_message, body_message, status_code, response_message = listavailability_operation(roomname, day)
+        else: # if day is not given, list availability for all days
+            final_body_message = '' # send connection for each day, get the response and add it to final_body_message
+            roomname = parameters['room']
+            for i in range(1, 8):   # check availability for all days
+                print(i)
+                title_message, body_message, status_code, response_message = listavailability_operation(roomname, i)
+                final_body_message += f'On day {i}: {body_message} <br>'
+            body_message = final_body_message
+    elif operation == 'display':
+        title_message, body_message, status_code, response_message = display_operation(parameters['id'])
     
-    html = f"HTTP/1.1 {status_code} {response_message}\r\n\n<HTML> <HEAD> <TITLE>{title_message}</TITLE> </HEAD> <BODY>{body_message}</BODY> </HTML>"
+    
+    html = f"HTTP/1.1 {status_code} {response_message}\r\n\n<HTML>\n<HEAD>\n<TITLE>{title_message}</TITLE>\n</HEAD>\n<BODY>{body_message}</BODY>\n</HTML>"
     return html
 
 

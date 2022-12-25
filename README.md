@@ -6,10 +6,12 @@ Room reservation systems using Socket programming
 
 - [x] Room Server
 - [x] Activity Server
-- [ ] Reservation Server
+- [x] Reservation Server
 - [ ] Json handler operations
+- [ ] room_server.py reserve_operation fonksiyonu icinde yazan TODO
+- [ ] reservation_server.py display_operation fonksiyonu icinde yazan TODO
 
-**Json handler fonksiyonlarının içine input olarak ne alıp neyi return edeceklerini yazdım, Reservation server fonkisonları yok onları da eklerim.**
+**Json handler fonksiyonlarının içine input olarak ne alıp neyi return edeceklerini yazdım oraya göre implement edilebilir.**
 
 ### Port Numbers
 | Server Name | Port Number |
