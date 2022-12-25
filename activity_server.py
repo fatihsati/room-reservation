@@ -11,9 +11,43 @@ print('The Activity server is ready to receive', serverSocket.getsockname())
 def parse_activity_server_message(message):
     """get the decoded message, return operation and parameters
        Function is same with the room_server.py parse_room_server_message function"""
+    #Standart message brwoser
+    """GET /check?name=fatih HTTP/1.1
+    Host: localhost:8001
+    Connection: keep-alive
+    sec-ch-ua: "Not?A_Brand";v="8", "Chromium";v="108", "Google Chrome";v="108"
+    sec-ch-ua-mobile: ?0
+    sec-ch-ua-platform: "Windows"
+    Upgrade-Insecure-Requests: 1
+    User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
+    Sec-Fetch-Site: none
+    Sec-Fetch-Mode: navigate
+    Sec-Fetch-User: ?1
+    Sec-Fetch-Dest: document
+    Accept-Encoding: gzip, deflate, br
+    Accept-Language: tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7,la;q=0.6"""
+    # /favicon.ico message from browser
+    """GET /favicon.ico HTTP/1.1
+            Host: localhost:8001
+            Connection: keep-alive
+            sec-ch-ua: "Not?A_Brand";v="8", "Chromium";v="108", "Google Chrome";v="108"
+            sec-ch-ua-mobile: ?0
+            User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36
+            sec-ch-ua-platform: "Windows"
+            Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8
+            Sec-Fetch-Site: same-origin
+            Sec-Fetch-Mode: no-cors
+            Sec-Fetch-Dest: image
+            Referer: http://localhost:8001/check?name=fatih
+            Accept-Encoding: gzip, deflate, br
+            Accept-Language: tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7,la;q=0.6"""
+    
     # get the url from header
     requested_url = message.split(' ')[1]
     if requested_url == '/favicon.ico':
+        # example /favicon.ico message
+       
         requested_url = re.search(r'Referer: (.*)', message).group(1).split('/')[-1]
     
     # parse operation and roomname
@@ -72,7 +106,7 @@ def check_operation(activityname):
         title_message = 'Activity Found'
         body_message = f" Activity with name {activityname} is found."
         response_message = "OK"
-    else:   # if activity is not found
+    else:   # if activity is not found , status code is 404
         title_message = 'Error'
         body_message = f" Activity with name {activityname} is not found."
         response_message = 'Not Found'
@@ -98,8 +132,8 @@ while True:
     
     connectionSocket, addr = serverSocket.accept()
     message = connectionSocket.recv(1024)
-    operation, roomname = parse_activity_server_message(message.decode())
-    html = create_HTML(operation, roomname)
+    operation, parameters = parse_activity_server_message(message.decode())
+    html = create_HTML(operation, parameters)
     connectionSocket.send(html.encode())
     connectionSocket.close()
     

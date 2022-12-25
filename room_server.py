@@ -130,7 +130,7 @@ while True:
     
     connectionSocket, addr = serverSocket.accept()
     message = connectionSocket.recv(1024)
-    operation, roomname = parse_room_server_message(message.decode())
-    html = create_HTML(operation, roomname)
+    operation, parameters = parse_room_server_message(message.decode())
+    html = create_HTML(operation, parameters)
     connectionSocket.send(html.encode())
     connectionSocket.close()

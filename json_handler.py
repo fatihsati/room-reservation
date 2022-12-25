@@ -31,7 +31,7 @@ def check_availability(roomname, day):
     # if day is not a valid day return 400, None
     # else return 200, "available hours"
     
-    return 404, "9 10 11 12 16 17 18" # clocks are sperated by single space
+    return 200, "9 10 11 12 16 17 18" # clocks are sperated by single space
 
 
 #################### Activity Server ####################
@@ -54,5 +54,12 @@ def check_activity(activityname):
     # if activityname is not in the json file, return 404
     # else return 200
     
-    return 404
+    return 202
     
+
+def reservation_reserve(roomname, activityname, day, hour, duration):
+    # reserve room in json file
+    # create reservation_id (should be unique)
+    # return 200, reservation_id
+    
+    return 200, 1
