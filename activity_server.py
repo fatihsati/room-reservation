@@ -43,6 +43,7 @@ def parse_activity_server_message(message):
             Accept-Encoding: gzip, deflate, br
             Accept-Language: tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7,la;q=0.6"""
     
+    print(message)
     # get the url from header
     requested_url = message.split(' ')[1]
     if requested_url == '/favicon.ico':
@@ -133,6 +134,7 @@ while True:
     connectionSocket, addr = serverSocket.accept()
     message = connectionSocket.recv(1024)
     operation, parameters = parse_activity_server_message(message.decode())
+    print(operation, parameters)
     html = create_HTML(operation, parameters)
     connectionSocket.send(html.encode())
     connectionSocket.close()

@@ -9,6 +9,7 @@ serverSocket.listen(1)
 print('The Room server is ready to receive', serverSocket.getsockname())
 
 def parse_room_server_message(message):
+    print(message)
     # get the url from header
     requested_url = message.split(' ')[1]
     if requested_url == '/favicon.ico':
