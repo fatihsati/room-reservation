@@ -17,6 +17,7 @@ def send_request_to_another_server(servername, url_input):
     # get the response from the server
     # close the socket
     # return the response
+
     serverPort = servername_to_port[servername]
     clientSocket = socket(AF_INET, SOCK_STREAM)
     clientSocket.connect(('localhost', serverPort))
@@ -35,17 +36,19 @@ def parse_reservation_server_message(message):
     
     # parse operation and roomname
     # split the url http://localhost:12000/add?name=fatih to a dictionary where key is operation add and value is roomname fatih
-    operation= requested_url.split('?')[0].split('/')[-1]
-    
-    parameters = {}
-    # get name if operation is add or remove
-
-    parameters_part = requested_url.split('?')[1]
-    splitted_parameters = parameters_part.split('&')
-    
-    for key, value in [parameter.split('=') for parameter in splitted_parameters]:
-        parameters[key] = value
+    try:
+        operation= requested_url.split('?')[0].split('/')[-1]
         
+        parameters = {}
+        # get name if operation is add or remove
+
+        parameters_part = requested_url.split('?')[1]
+        splitted_parameters = parameters_part.split('&')
+        
+        for key, value in [parameter.split('=') for parameter in splitted_parameters]:
+            parameters[key] = value
+    except:
+        return None, None
     return operation, parameters
     
 def reserve_operation(roomname, activityname, day, hour, duration):
@@ -139,7 +142,6 @@ def create_HTML(operation, parameters):
             final_body_message = '' # send connection for each day, get the response and add it to final_body_message
             roomname = parameters['room']
             for i in range(1, 8):   # check availability for all days
-                print(i)
                 title_message, body_message, status_code, response_message = listavailability_operation(roomname, i)
                 final_body_message += f'On day {i}: {body_message} <br>'
             body_message = final_body_message
@@ -150,13 +152,24 @@ def create_HTML(operation, parameters):
     html = f"HTTP/1.1 {status_code} {response_message}\r\n\n<HTML>\n<HEAD>\n<TITLE>{title_message}</TITLE>\n</HEAD>\n<BODY>{body_message}</BODY>\n</HTML>"
     return html
 
+def create_error_message():
+    title_message = 'Error'
+    body_message = 'Invalid Input'
+    status_code = 400
+    response_message = 'Bad Request'
+    html = f"HTTP/1.1 {status_code} {response_message}\r\n\n<HTML> <HEAD> <TITLE>{title_message}</TITLE> </HEAD> <BODY>{body_message}</BODY> </HTML>"
+    return html
 
 
 while True:
     
     connectionSocket, addr = serverSocket.accept()
-    message = connectionSocket.recv(1024)
+    message = connectionSocket.recv(4096)
     operation, roomname = parse_reservation_server_message(message.decode())
+    if operation == None:
+        connectionSocket.send(create_error_message().encode())  # send error message, wait for next request
+        connectionSocket.close()
+        continue
     html = create_HTML(operation, roomname)
     connectionSocket.send(html.encode())
     connectionSocket.close()

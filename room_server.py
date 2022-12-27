@@ -9,7 +9,6 @@ serverSocket.listen(1)
 print('The Room server is ready to receive', serverSocket.getsockname())
 
 def parse_room_server_message(message):
-    print(message)
     # get the url from header
     requested_url = message.split(' ')[1]
     if requested_url == '/favicon.ico':
@@ -17,22 +16,25 @@ def parse_room_server_message(message):
     
     # parse operation and roomname
     # split the url http://localhost:12000/add?name=fatih to a dictionary where key is operation add and value is roomname fatih
-    operation= requested_url.split('?')[0].split('/')[-1]
-    
-    parameters = {}
-    # get name if operation is add or remove
-    if operation == 'add' or operation == 'remove':
-        roomname = requested_url.split('=')[1]
-        parameters['name'] = roomname
-    
-    # if operation is not add or remove, split the url to a dictionary where key day and value is the day number
-    else:
-        parameters_part = requested_url.split('?')[1]
-        splitted_parameters = parameters_part.split('&')
+    try:
+        operation= requested_url.split('?')[0].split('/')[-1]
         
-        for key, value in [parameter.split('=') for parameter in splitted_parameters]:
-            parameters[key] = value
+        parameters = {}
+        # get name if operation is add or remove
+        if operation == 'add' or operation == 'remove':
+            roomname = requested_url.split('=')[1]
+            parameters['name'] = roomname
         
+        # if operation is not add or remove, split the url to a dictionary where key day and value is the day number
+        else:
+            parameters_part = requested_url.split('?')[1]
+            splitted_parameters = parameters_part.split('&')
+            
+            for key, value in [parameter.split('=') for parameter in splitted_parameters]:
+                parameters[key] = value
+    except:
+        return None, None
+    
     return operation, parameters
 
 def add_operation(roomname):
@@ -68,7 +70,6 @@ def reserve_operation(roomname, day, hour, duration):
     # TODO: convert hour from 9-18 to 09:00-18:00
     
     status_code = json_handler.reserve_room(roomname, day, hour, duration)
-    print(status_code)
     if status_code == 200:
         title_message = 'Reservation Successful'
         body_message = f" Room {roomname} is reserved at {day}, {hour} for {duration} hours."

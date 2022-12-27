@@ -43,7 +43,6 @@ def parse_activity_server_message(message):
             Accept-Encoding: gzip, deflate, br
             Accept-Language: tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7,la;q=0.6"""
     
-    print(message)
     # get the url from header
     requested_url = message.split(' ')[1]
     if requested_url == '/favicon.ico':
@@ -53,22 +52,24 @@ def parse_activity_server_message(message):
     
     # parse operation and roomname
     # split the url http://localhost:12000/add?name=fatih to a dictionary where key is operation add and value is roomname fatih
-    operation= requested_url.split('?')[0].split('/')[-1]
-    
-    parameters = {}
-    # get name if operation is add or remove
-    if operation == 'add' or operation == 'remove':
-        roomname = requested_url.split('=')[1]
-        parameters['name'] = roomname
-    
-    # if operation is not add or remove, split the url to a dictionary where key day and value is the day number
-    else:
-        parameters_part = requested_url.split('?')[1]
-        splitted_parameters = parameters_part.split('&')
+    try:
+        operation= requested_url.split('?')[0].split('/')[-1]
         
-        for key, value in [parameter.split('=') for parameter in splitted_parameters]:
-            parameters[key] = value
+        parameters = {}
+        # get name if operation is add or remove
+        if operation == 'add' or operation == 'remove':
+            roomname = requested_url.split('=')[1]
+            parameters['name'] = roomname
         
+        # if operation is not add or remove, split the url to a dictionary where key day and value is the day number
+        else:
+            parameters_part = requested_url.split('?')[1]
+            splitted_parameters = parameters_part.split('&')
+            
+            for key, value in [parameter.split('=') for parameter in splitted_parameters]:
+                parameters[key] = value
+    except:
+        return None, None
     return operation, parameters
 
 def add_operation(activityname):
@@ -129,12 +130,23 @@ def create_HTML(operation, parameters):
     html = f"HTTP/1.1 {status_code} {response_message}\r\n\n<HTML> <HEAD> <TITLE>{title_message}</TITLE> </HEAD> <BODY>{body_message}</BODY> </HTML>"
     return html
 
+def create_error_message():
+    title_message = 'Error'
+    body_message = 'Invalid Input'
+    status_code = 400
+    response_message = 'Bad Request'
+    html = f"HTTP/1.1 {status_code} {response_message}\r\n\n<HTML> <HEAD> <TITLE>{title_message}</TITLE> </HEAD> <BODY>{body_message}</BODY> </HTML>"
+    return html
+
 while True:
     
     connectionSocket, addr = serverSocket.accept()
     message = connectionSocket.recv(1024)
     operation, parameters = parse_activity_server_message(message.decode())
-    print(operation, parameters)
+    if operation is None:   # if operation is None, it means that the message is not valid
+        connectionSocket.send(create_error_message().encode())  # send error message, wait for next request
+        connectionSocket.close()
+        continue
     html = create_HTML(operation, parameters)
     connectionSocket.send(html.encode())
     connectionSocket.close()
