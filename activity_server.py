@@ -4,7 +4,7 @@ import json_handler
 
 serverPort = 8001
 serverSocket = socket(AF_INET, SOCK_STREAM)
-serverSocket.bind(('', serverPort))
+serverSocket.bind(('localhost', serverPort))
 serverSocket.listen(1)
 print('The Activity server is ready to receive', serverSocket.getsockname())
 
@@ -47,8 +47,8 @@ def parse_activity_server_message(message):
     requested_url = message.split(' ')[1]
     if requested_url == '/favicon.ico':
         # example /favicon.ico message
-       
-        requested_url = re.search(r'Referer: (.*)', message).group(1).split('/')[-1]
+       return False, None
+        # requested_url = re.search(r'Referer: (.*)', message).group(1).split('/')[-1]
     
     # parse operation and roomname
     # split the url http://localhost:12000/add?name=fatih to a dictionary where key is operation add and value is roomname fatih
@@ -143,6 +143,9 @@ while True:
     connectionSocket, addr = serverSocket.accept()
     message = connectionSocket.recv(1024)
     operation, parameters = parse_activity_server_message(message.decode())
+    if not operation:   # if message is favicon.ico close the connection
+        connectionSocket.close()
+        continue
     if operation is None:   # if operation is None, it means that the message is not valid
         connectionSocket.send(create_error_message().encode())  # send error message, wait for next request
         connectionSocket.close()

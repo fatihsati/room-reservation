@@ -4,7 +4,7 @@ import json_handler
 
 serverPort = 8002
 serverSocket = socket(AF_INET, SOCK_STREAM)
-serverSocket.bind(('', serverPort))
+serverSocket.bind(('localhost', serverPort))
 serverSocket.listen(1)
 print('The Reservation server is ready to receive', serverSocket.getsockname())
 
@@ -32,7 +32,8 @@ def parse_reservation_server_message(message):
     # get the url from header
     requested_url = message.split(' ')[1]
     if requested_url == '/favicon.ico':
-        requested_url = re.search(r'Referer: (.*)', message).group(1).split('/')[-1]
+        # requested_url = re.search(r'Referer: (.*)', message).group(1).split('/')[-1]
+        return False, None
     
     # parse operation and roomname
     # split the url http://localhost:12000/add?name=fatih to a dictionary where key is operation add and value is roomname fatih
@@ -166,6 +167,9 @@ while True:
     connectionSocket, addr = serverSocket.accept()
     message = connectionSocket.recv(4096)
     operation, roomname = parse_reservation_server_message(message.decode())
+    if not operation:   # if operation is /favicon.ico, wait for next request
+        connectionSocket.close()
+        continue
     if operation == None:
         connectionSocket.send(create_error_message().encode())  # send error message, wait for next request
         connectionSocket.close()

@@ -4,7 +4,7 @@ import json_handler
 
 serverPort = 8000
 serverSocket = socket(AF_INET, SOCK_STREAM)
-serverSocket.bind(('', serverPort))
+serverSocket.bind(('localhost', serverPort))
 serverSocket.listen(1)
 print('The Room server is ready to receive', serverSocket.getsockname())
 
@@ -12,7 +12,8 @@ def parse_room_server_message(message):
     # get the url from header
     requested_url = message.split(' ')[1]
     if requested_url == '/favicon.ico':
-        requested_url = re.search(r'Referer: (.*)', message).group(1).split('/')[-1]
+        # requested_url = re.search(r'Referer: (.*)', message).group(1).split('/')[-1]
+        return False, None
     
     # parse operation and roomname
     # split the url http://localhost:12000/add?name=fatih to a dictionary where key is operation add and value is roomname fatih
@@ -33,7 +34,7 @@ def parse_room_server_message(message):
             for key, value in [parameter.split('=') for parameter in splitted_parameters]:
                 parameters[key] = value
     except:
-        return None, None
+        return None, None   # None,None means that the url is not valid. add?nameroom1 will return None, None since it has no "=" in it. 
     
     return operation, parameters
 
@@ -128,11 +129,29 @@ def create_HTML(operation, parameters):
     html = f"HTTP/1.1 {status_code} {response_message}\r\n\n<HTML> <HEAD> <TITLE>{title_message}</TITLE> </HEAD> <BODY>{body_message}</BODY> </HTML>"
     return html
 
+def create_error_message():
+    title_message = 'Error'
+    body_message = 'Invalid Input'
+    status_code = 400
+    response_message = 'Bad Request'
+    html = f"HTTP/1.1 {status_code} {response_message}\r\n\n<HTML> <HEAD> <TITLE>{title_message}</TITLE> </HEAD> <BODY>{body_message}</BODY> </HTML>"
+    return html
+
+
 while True:
     
     connectionSocket, addr = serverSocket.accept()
-    message = connectionSocket.recv(1024)
+    message = connectionSocket.recv(4096)
+    print(f'Message is received from {addr}. Message is {message.decode()}')
     operation, parameters = parse_room_server_message(message.decode())
+    if not operation:   # if message is favicon.ico close the connection
+        connectionSocket.close()
+        continue
+    if operation is None:   # if operation is None, it means that the message is not valid
+        connectionSocket.send(create_error_message().encode())  # send error message, wait for next request
+        connectionSocket.close()
+        continue
     html = create_HTML(operation, parameters)
+    print('HTML file is created.')
     connectionSocket.send(html.encode())
     connectionSocket.close()
