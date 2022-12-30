@@ -9,10 +9,27 @@ serverSocket.listen(1)
 print('The Room server is ready to receive', serverSocket.getsockname())
 
 def parse_room_server_message(message):
+    
+    connection_method = message.split(' ')[0]   # GET or POST
+    
+    if connection_method == 'POST':
+        data = re.search(r'{([\s\S]*?)}', message).group(1) # get the data between { and } from the message.
+        data = data.replace('"', '')    # since the data is in the form of "operation: add, name: room1", we need to remove the " from the data.
+        parameters = {}
+        for key, value in [parameter.split(':') for parameter in data.split(',')]:  # split data from comma and then split each part from colon
+            # remove the spaces from the key and value
+            parameters[key.strip()] = value.strip()
+        
+        try:
+            operation = parameters['operation']
+        except:
+            return None, None   # operation is not found
+        return parameters['operation'], parameters
+    
+    # if connection method is GET
     # get the url from header
     requested_url = message.split(' ')[1]
     if requested_url == '/favicon.ico':
-        # requested_url = re.search(r'Referer: (.*)', message).group(1).split('/')[-1]
         return False, None
     
     # parse operation and roomname
@@ -21,18 +38,12 @@ def parse_room_server_message(message):
         operation= requested_url.split('?')[0].split('/')[-1]
         
         parameters = {}
-        # get name if operation is add or remove
-        if operation == 'add' or operation == 'remove':
-            roomname = requested_url.split('=')[1]
-            parameters['name'] = roomname
         
-        # if operation is not add or remove, split the url to a dictionary where key day and value is the day number
-        else:
-            parameters_part = requested_url.split('?')[1]
-            splitted_parameters = parameters_part.split('&')
-            
-            for key, value in [parameter.split('=') for parameter in splitted_parameters]:
-                parameters[key] = value
+        parameters_part = requested_url.split('?')[1]
+        splitted_parameters = parameters_part.split('&')
+        
+        for key, value in [parameter.split('=') for parameter in splitted_parameters]:
+            parameters[key] = value
     except:
         return None, None   # None,None means that the url is not valid. add?nameroom1 will return None, None since it has no "=" in it. 
     
@@ -108,17 +119,32 @@ def check_availability_operation(roomname, day):
 def create_HTML(operation, parameters):
     
     if operation == 'add':
-        title_message, body_message, status_code, response_message = add_operation(parameters['name'])
+        try:
+            name = parameters['name']
+        except:
+            return None
+        title_message, body_message, status_code, response_message = add_operation(name)
     
     elif operation == 'remove':
-        title_message, body_message, status_code, response_message = remove_operation(parameters['name'])
+        try:
+            name = parameters['name']
+        except:
+            return None
+        title_message, body_message, status_code, response_message = remove_operation(name)
     
     elif operation == 'reserve':
-        roomname, day, hour, duration = parameters['name'], parameters['day'], parameters['hour'], parameters['duration']
+        try:
+            roomname, day, hour, duration = parameters['name'], parameters['day'], parameters['hour'], parameters['duration']
+        except:
+            return None
         title_message, body_message, status_code, response_message = reserve_operation(roomname, day, hour, duration)
     
     elif operation == 'checkavailability':
-        title_message, body_message, status_code, response_message =  check_availability_operation(parameters['name'], parameters['day'])
+        try:
+            name, day = parameters['name'], parameters['day']
+        except:
+            return None
+        title_message, body_message, status_code, response_message =  check_availability_operation(name, day)
     
     else:
         title_message = 'Error'
@@ -142,16 +168,25 @@ while True:
     
     connectionSocket, addr = serverSocket.accept()
     message = connectionSocket.recv(4096)
-    print(f'Message is received from {addr}. Message is {message.decode()}')
+    # print(f'Message is received from {addr}. Message is {message.decode()}')
+    print(f'Message is received from {addr}.')
+
     operation, parameters = parse_room_server_message(message.decode())
-    if not operation:   # if message is favicon.ico close the connection
+    if operation is False:   # if message is favicon.ico close the connection
         connectionSocket.close()
         continue
+
     if operation is None:   # if operation is None, it means that the message is not valid
         connectionSocket.send(create_error_message().encode())  # send error message, wait for next request
         connectionSocket.close()
         continue
+    
     html = create_HTML(operation, parameters)
-    print('HTML file is created.')
+    
+    if html == None:    # parameters are not valid
+        connectionSocket.send(create_error_message().encode())
+        connectionSocket.close()
+        continue
+    
     connectionSocket.send(html.encode())
     connectionSocket.close()

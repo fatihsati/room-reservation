@@ -43,6 +43,22 @@ def parse_activity_server_message(message):
             Accept-Encoding: gzip, deflate, br
             Accept-Language: tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7,la;q=0.6"""
     
+    connection_method = message.split(' ')[0]   # GET or POST
+    
+    if connection_method == 'POST':
+        
+        data = re.search(r'{([\s\S]*?)}', message).group(1) # get the data between { and } from the message.
+        data = data.replace('"', '')    # since the data is in the form of "operation: add, name: room1", we need to remove the " from the data.
+        parameters = {}
+        for key, value in [parameter.split(':') for parameter in data.split(',')]:  # split data from comma and then split each part from colon
+            # remove the spaces from the key and value
+            parameters[key.strip()] = value.strip()
+        try:
+            operation = parameters['operation']
+        except:
+            return None, None   # operation is not found
+        return operation, parameters
+    
     # get the url from header
     requested_url = message.split(' ')[1]
     if requested_url == '/favicon.ico':
@@ -56,18 +72,13 @@ def parse_activity_server_message(message):
         operation= requested_url.split('?')[0].split('/')[-1]
         
         parameters = {}
-        # get name if operation is add or remove
-        if operation == 'add' or operation == 'remove':
-            roomname = requested_url.split('=')[1]
-            parameters['name'] = roomname
+        # split the url to a dictionary where key day and value is the day number
         
-        # if operation is not add or remove, split the url to a dictionary where key day and value is the day number
-        else:
-            parameters_part = requested_url.split('?')[1]
-            splitted_parameters = parameters_part.split('&')
-            
-            for key, value in [parameter.split('=') for parameter in splitted_parameters]:
-                parameters[key] = value
+        parameters_part = requested_url.split('?')[1]
+        splitted_parameters = parameters_part.split('&')
+        
+        for key, value in [parameter.split('=') for parameter in splitted_parameters]:
+            parameters[key] = value
     except:
         return None, None
     return operation, parameters
@@ -119,13 +130,25 @@ def check_operation(activityname):
 def create_HTML(operation, parameters):
     
     if operation == 'add':
-        title_message, body_message, status_code, response_message = add_operation(parameters['name'])
+        try:
+            name = parameters['name']
+        except:
+            return None
+        title_message, body_message, status_code, response_message = add_operation(name)
     
     elif operation == 'remove':
-        title_message, body_message, status_code, response_message = remove_operation(parameters['name'])
+        try:
+            name = parameters['name']
+        except:
+            return None
+        title_message, body_message, status_code, response_message = remove_operation(name)
     
     elif operation == 'check':
-        title_message, body_message, status_code, response_message = check_operation(parameters['name'])
+        try:
+            name = parameters['name']
+        except:
+            return None
+        title_message, body_message, status_code, response_message = check_operation(name)
     
     html = f"HTTP/1.1 {status_code} {response_message}\r\n\n<HTML> <HEAD> <TITLE>{title_message}</TITLE> </HEAD> <BODY>{body_message}</BODY> </HTML>"
     return html
@@ -143,14 +166,23 @@ while True:
     connectionSocket, addr = serverSocket.accept()
     message = connectionSocket.recv(1024)
     operation, parameters = parse_activity_server_message(message.decode())
-    if not operation:   # if message is favicon.ico close the connection
+    
+    if operation is False:   # if message is favicon.ico close the connection
         connectionSocket.close()
         continue
+    
     if operation is None:   # if operation is None, it means that the message is not valid
         connectionSocket.send(create_error_message().encode())  # send error message, wait for next request
         connectionSocket.close()
         continue
+    
     html = create_HTML(operation, parameters)
+    
+    if html is None:    # parameters are not valid
+        connectionSocket.send(create_error_message().encode())
+        connectionSocket.close()
+        continue
+    
     connectionSocket.send(html.encode())
     connectionSocket.close()
     

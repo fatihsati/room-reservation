@@ -29,6 +29,22 @@ def send_request_to_another_server(servername, url_input):
     return response
 
 def parse_reservation_server_message(message):
+    
+    connection_method = message.split(' ')[0]   # GET or POST
+    
+    if connection_method == 'POST':
+        data = re.search(r'{([\s\S]*?)}', message).group(1) # get the data between { and } from the message.
+        data = data.replace('"', '')    # since the data is in the form of "operation: add, name: room1", we need to remove the " from the data.
+        parameters = {}
+        for key, value in [parameter.split(':') for parameter in data.split(',')]:  # split data from comma and then split each part from colon
+            # remove the spaces from the key and value
+            parameters[key.strip()] = value.strip()
+        try:
+            operation = parameters['operation']
+        except:
+            return None, None   # operation is not found
+        return operation, parameters
+    
     # get the url from header
     requested_url = message.split(' ')[1]
     if requested_url == '/favicon.ico':
@@ -132,22 +148,36 @@ def display_operation(reservation_id):
 def create_HTML(operation, parameters):
     
     if operation == 'reserve':
-        roomname, activityname, day, hour, duration = parameters['room'], parameters['activity'], parameters['day'], parameters['hour'], parameters['duration']
+        try:
+            roomname, activityname, day, hour, duration = parameters['room'], parameters['activity'], parameters['day'], parameters['hour'], parameters['duration']
+        except:
+            return None
         title_message, body_message, status_code, response_message = reserve_operation(roomname, activityname, day, hour, duration)
     
     elif operation == 'listavailability':
         if 'day' in parameters: # if day is given, list availability for that day
-            roomname, day = parameters['room'], parameters['day']
+            try:
+                roomname, day = parameters['room'], parameters['day']
+            except:
+                return None
             title_message, body_message, status_code, response_message = listavailability_operation(roomname, day)
         else: # if day is not given, list availability for all days
             final_body_message = '' # send connection for each day, get the response and add it to final_body_message
-            roomname = parameters['room']
+            try:
+                roomname = parameters['room']
+            except:
+                return None
             for i in range(1, 8):   # check availability for all days
                 title_message, body_message, status_code, response_message = listavailability_operation(roomname, i)
                 final_body_message += f'On day {i}: {body_message} <br>'
             body_message = final_body_message
+            
     elif operation == 'display':
-        title_message, body_message, status_code, response_message = display_operation(parameters['id'])
+        try:
+            id = parameters['id']
+        except:
+            return None
+        title_message, body_message, status_code, response_message = display_operation(id)
     
     
     html = f"HTTP/1.1 {status_code} {response_message}\r\n\n<HTML>\n<HEAD>\n<TITLE>{title_message}</TITLE>\n</HEAD>\n<BODY>{body_message}</BODY>\n</HTML>"
@@ -167,13 +197,21 @@ while True:
     connectionSocket, addr = serverSocket.accept()
     message = connectionSocket.recv(4096)
     operation, roomname = parse_reservation_server_message(message.decode())
-    if not operation:   # if operation is /favicon.ico, wait for next request
+    
+    if operation is False:   # if operation is /favicon.ico, wait for next request
         connectionSocket.close()
         continue
-    if operation == None:
+    
+    if operation is None:   # if operation is not valid
         connectionSocket.send(create_error_message().encode())  # send error message, wait for next request
         connectionSocket.close()
         continue
+    
     html = create_HTML(operation, roomname)
+    if html is None:    # parameters are not valid
+        connectionSocket.send(create_error_message().encode())
+        connectionSocket.close()
+        continue
+    
     connectionSocket.send(html.encode())
     connectionSocket.close()
