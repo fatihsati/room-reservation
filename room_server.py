@@ -8,6 +8,8 @@ serverSocket.bind(('localhost', serverPort))
 serverSocket.listen(1)
 print('The Room server is ready to receive', serverSocket.getsockname())
 
+days_dict = {"1": "Monday", "2": "Tuesday", "3": "Wednesday", "4": "Thursday", "5": "Friday", "6": "Saturday", "7": "Sunday"}
+
 def parse_room_server_message(message):
     
     connection_method = message.split(' ')[0]   # GET or POST
@@ -28,6 +30,7 @@ def parse_room_server_message(message):
     
     # if connection method is GET
     # get the url from header
+    print(message)
     requested_url = message.split(' ')[1]
     if requested_url == '/favicon.ico':
         return False, None
@@ -83,8 +86,10 @@ def reserve_operation(roomname, day, hour, duration):
     
     status_code = json_handler.reserve_room(roomname, day, hour, duration)
     if status_code == 200:
+        start_hour = int(hour)
+        end_hour = int(hour) + int(duration)
         title_message = 'Reservation Successful'
-        body_message = f" Room {roomname} is reserved at {day}, {hour} for {duration} hours."
+        body_message = f" Room {roomname} is reserved at {days_dict[day]}, {start_hour}:00 - {end_hour}:00."
         response_message = 'OK'
     elif status_code == 400:
         title_message = 'Error'
@@ -167,7 +172,8 @@ def create_error_message():
 while True:
     
     connectionSocket, addr = serverSocket.accept()
-    message = connectionSocket.recv(4096)
+    message = connectionSocket.recv(1024)
+    
     # print(f'Message is received from {addr}. Message is {message.decode()}')
     print(f'Message is received from {addr}.')
 

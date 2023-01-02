@@ -8,6 +8,7 @@ serverSocket.bind(('localhost', serverPort))
 serverSocket.listen(1)
 print('The Reservation server is ready to receive', serverSocket.getsockname())
 
+days_dict = {"1": "Monday", "2": "Tuesday", "3": "Wednesday", "4": "Thursday", "5": "Friday", "6": "Saturday", "7": "Sunday"}
 servername_to_port = {'room': 8000,
                       'activity': 8001}
 
@@ -23,7 +24,7 @@ def send_request_to_another_server(servername, url_input):
     clientSocket.connect(('localhost', serverPort))
     message = f"GET /{url_input} HTTP/1.1\r"
     clientSocket.send(message.encode())
-    response = clientSocket.recv(4096)
+    response = clientSocket.recv(1024)
     response = response.decode()
     clientSocket.close()
     return response
@@ -94,7 +95,7 @@ def reserve_operation(roomname, activityname, day, hour, duration):
     if room_status_code == 200: # all conditions are met
         status_code, reservation_id = json_handler.reservation_reserve(roomname, activityname, day, hour, duration)
         title_message = 'Reservation Successful'
-        body_message = f'Room {roomname} is reserved for activity {activityname} on {day} at {hour} for {duration} hours.\nYour reservation id is {reservation_id}.'
+        body_message = f'Room {roomname} is reserved for activity {activityname} on {days_dict[day]} at {hour}:00 for {duration} hours.\nYour reservation id is {reservation_id}.'
         response_message = 'OK'
         
     # if inputs are not valid, room server returns 400
@@ -135,7 +136,7 @@ def display_operation(reservation_id):
         
         roomname, activityname, day, hour, duration = reservation_information.split(',')
         title_message = 'Reservation Information'
-        body_message = f'Room: {roomname}\nActivity: {activityname}\nDay: {day}\nHour: {hour}\nDuration: {duration}'
+        body_message = f'Room: {roomname}\nActivity: {activityname}\nDay: {days_dict[day]}\nHour: {hour}\nDuration: {duration}'
         response_message = 'OK'
         
     else:
@@ -169,7 +170,9 @@ def create_HTML(operation, parameters):
                 return None
             for i in range(1, 8):   # check availability for all days
                 title_message, body_message, status_code, response_message = listavailability_operation(roomname, i)
-                final_body_message += f'On day {i}: {body_message} <br>'
+                if status_code == 404:  # if room does not exists
+                    return room_does_not_exists_message()
+                final_body_message += f'On day {days_dict[str(i)]}: {body_message} <br>'
             body_message = final_body_message
             
     elif operation == 'display':
@@ -191,11 +194,20 @@ def create_error_message():
     html = f"HTTP/1.1 {status_code} {response_message}\r\n\n<HTML> <HEAD> <TITLE>{title_message}</TITLE> </HEAD> <BODY>{body_message}</BODY> </HTML>"
     return html
 
+def room_does_not_exists_message():
+    title_message = 'Not Found'
+    body_message = 'Room does not exists'
+    status_code = 404
+    response_message = 'Not Found'
+    html = f"HTTP/1.1 {status_code} {response_message}\r\n\n<HTML> <HEAD> <TITLE>{title_message}</TITLE> </HEAD> <BODY>{body_message}</BODY> </HTML>"
+    return html
+
 
 while True:
     
     connectionSocket, addr = serverSocket.accept()
-    message = connectionSocket.recv(4096)
+    message = connectionSocket.recv(1024)
+    print('message received from: ', addr)
     operation, roomname = parse_reservation_server_message(message.decode())
     
     if operation is False:   # if operation is /favicon.ico, wait for next request

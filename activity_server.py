@@ -8,6 +8,8 @@ serverSocket.bind(('localhost', serverPort))
 serverSocket.listen(1)
 print('The Activity server is ready to receive', serverSocket.getsockname())
 
+
+
 def parse_activity_server_message(message):
     """get the decoded message, return operation and parameters
        Function is same with the room_server.py parse_room_server_message function"""
@@ -165,6 +167,7 @@ while True:
     
     connectionSocket, addr = serverSocket.accept()
     message = connectionSocket.recv(1024)
+    print('Message received from: ', addr)
     operation, parameters = parse_activity_server_message(message.decode())
     
     if operation is False:   # if message is favicon.ico close the connection
