@@ -54,7 +54,7 @@ def send_request_to_another_server(servername, url_input) -> RequestResponse:
     return response
 
 
-def reserve_operation(input: ReserveInput):
+def reserve_operation(input: ReserveInput) -> HttpResponse:
     activity_response = send_request_to_another_server(
         "activity", f"check?name={input.activity}"
     )
@@ -100,7 +100,7 @@ def reserve_operation(input: ReserveInput):
     )
 
 
-def listavailability_operation(input: ListAvailabilityInput):
+def listavailability_operation(input: ListAvailabilityInput) -> HttpResponse:
     if input.day:
         response = send_request_to_another_server(
             "room", f"checkavailability?name={input.room}&day={input.day}"
@@ -133,7 +133,7 @@ def listavailability_operation(input: ListAvailabilityInput):
     )
 
 
-def display_operation(input: DisplayInput):
+def display_operation(input: DisplayInput) -> HttpResponse:
     try:
         response = json_handler.display_reservation(input.id)
     except NotFound as e:

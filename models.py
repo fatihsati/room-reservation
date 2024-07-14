@@ -10,7 +10,7 @@ class HttpResponse(BaseModel):
     body: str
 
     @property
-    def html(self):
+    def html(self) -> str:
         return f"HTTP/1.1 {self.status_code} {self.response_message}\r\n\n<HTML> <HEAD> <TITLE>{self.title}</TITLE> </HEAD><BODY>{self.body}</BODY></HTML>"
 
 
@@ -19,7 +19,7 @@ BAD_REQUEST = HttpResponse(
 )
 
 
-def _create_days():
+def _create_days() -> dict:
     values = {}
     for day in range(1, 8):
         values[day] = dict()
@@ -45,7 +45,7 @@ class DisplayReservation(BaseModel):
     duration: int = Field(ge=1, le=9)
 
     @property
-    def text(self):
+    def text(self) -> str:
         return f"{self.room}, {self.activity}, {self.day}, {self.hour}, {self.duration}"
 
 
@@ -85,17 +85,17 @@ class RequestResponse(BaseModel):
     message: str
 
     @property
-    def status_code(self):
+    def status_code(self) -> int:
         return int(self.header.split(" ")[1])
 
     @property
-    def response_message(self):
+    def response_message(self) -> str:
         return self.header.split(" ")[2]
 
     @property
-    def title(self):
+    def title(self) -> str:
         return re.search(r"<TITLE>(.*)<\/TITLE>", self.message).group(1)
 
     @property
-    def body(self):
+    def body(self) -> str:
         return re.search(r"<BODY>(.*)<\/BODY>", self.message).group(1)

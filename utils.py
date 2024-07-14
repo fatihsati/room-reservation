@@ -1,7 +1,7 @@
 from exceptions import BadRequest
 
 
-def parse_input(message):
+def parse_input(message: str) -> tuple[str, dict]:
     connection_method = message.split(" ")[0]  # GET or POST
 
     # get the url from header

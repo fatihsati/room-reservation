@@ -15,7 +15,7 @@ serverSocket.listen()
 print("The Activity server is ready to receive", serverSocket.socket.getsockname())
 
 
-def add_operation(input: ActivityBase):
+def add_operation(input: ActivityBase) -> HttpResponse:
     try:
         status_code = json_handler.add_activity(input.name)
     except Forbidden as e:
@@ -33,7 +33,7 @@ def add_operation(input: ActivityBase):
     )
 
 
-def remove_operation(input: ActivityBase):
+def remove_operation(input: ActivityBase) -> HttpResponse:
     try:
         status_code = json_handler.remove_activity(input.name)
     except Forbidden as e:
@@ -52,7 +52,7 @@ def remove_operation(input: ActivityBase):
     )
 
 
-def check_operation(input: ActivityBase):
+def check_operation(input: ActivityBase) -> HttpResponse:
     try:
         status_code = json_handler.check_activity(input.name)
     except NotFound as e:

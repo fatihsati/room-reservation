@@ -29,7 +29,7 @@ days_dict = {
 }
 
 
-def add_operation(input: RoomBaseInput):
+def add_operation(input: RoomBaseInput) -> HttpResponse:
     try:
         result = json_handler.add_room(input.name)
     except Forbidden as e:
@@ -47,7 +47,7 @@ def add_operation(input: RoomBaseInput):
     )
 
 
-def remove_operation(input: RoomBaseInput):
+def remove_operation(input: RoomBaseInput) -> HttpResponse:
     try:
         status_code = json_handler.remove_room(input.name)
     except Forbidden as e:
@@ -65,7 +65,7 @@ def remove_operation(input: RoomBaseInput):
     )
 
 
-def reserve_operation(input: RoomReserveInput):
+def reserve_operation(input: RoomReserveInput) -> HttpResponse:
     try:
         status_code = json_handler.reserve_room(
             input.name, input.day, input.hour, input.duration
@@ -88,7 +88,7 @@ def reserve_operation(input: RoomReserveInput):
     )
 
 
-def check_availability_operation(input: RoomCheckAvailabilityInput):
+def check_availability_operation(input: RoomCheckAvailabilityInput) -> HttpResponse:
     try:
         response = json_handler.check_availability(input.name, input.day)
     except NotFound as e:

@@ -9,7 +9,7 @@ RESERVATION_INPUT_PATH = "data/reservation_server.json"
 
 
 #################### Room Server ####################
-def add_room(roomname):
+def add_room(roomname: str):
     # add room to json file
     # if roomname is already in the json file, return 403
     # else return 200
@@ -24,7 +24,7 @@ def add_room(roomname):
     return True
 
 
-def remove_room(roomname):
+def remove_room(roomname: str):
     # delete room from json file
     # if roomname is not in the json file, return 403
     # else return 200
@@ -37,7 +37,7 @@ def remove_room(roomname):
     return True
 
 
-def reserve_room(roomname, day, hour, duration):
+def reserve_room(roomname: str, day: int, hour: int, duration: int):
     # reserve room in json file
     # if room is already reserved raise Forbidden
     # else return 200
@@ -57,8 +57,7 @@ def reserve_room(roomname, day, hour, duration):
     return True
 
 
-def check_availability(roomname, day):
-    # if roomname is not exists raise NotFound
+def check_availability(roomname: str, day: int): # if: int roomname is not exists raise NotFound
     # else return 200, "available hours"
     room_server = read_json(ROOM_INPUT_PATH)
     if roomname not in room_server.keys():
@@ -74,7 +73,7 @@ def check_availability(roomname, day):
 
 
 #################### Activity Server ####################
-def add_activity(activityname):
+def add_activity(activityname: str):
     # add activity to json file
     # if activityname is already in the json file, raise Forbidden
     # else return 200
@@ -89,7 +88,7 @@ def add_activity(activityname):
     return True
 
 
-def remove_activity(activityname):
+def remove_activity(activityname: str):
     # delete activity from json file
     # if activityname is not in the json file, raise Forbidden
     # else return 200
@@ -102,7 +101,7 @@ def remove_activity(activityname):
     return True
 
 
-def check_activity(activityname):
+def check_activity(activityname: str):
     # check if activity is in json file
     # if activityname is not in the json file, return 404
     # else return 200
@@ -113,7 +112,7 @@ def check_activity(activityname):
     return True
 
 
-def add_reservation(activityname, roomname, day, hour, duration):
+def add_reservation(activityname: str, roomname:str, day: int, hour: int, duration: int):
     # add reservation to json file
     # if any of the input is invalid return 400
     activity_server = read_json(ACTIVITY_INPUT_PATH)
@@ -138,14 +137,14 @@ def generate_reservation_id():
         return max_num + 1
 
 
-def add_reservation_id(reservation_id, activityname):
+def add_reservation_id(reservation_id: int, activityname: str):
     # add reservation to json file
     reservation_server = read_json(RESERVATION_INPUT_PATH)
     reservation_server[reservation_id] = activityname
     update_json(RESERVATION_INPUT_PATH, reservation_server)
 
 
-def reservation_reserve(roomname, activityname, day, hour, duration):
+def reservation_reserve(roomname: str, activityname, day: int, hour: int, duration: int):
     # reserve room in json file
     # create reservation_id (should be unique)
     # return 200, reservation_id
@@ -156,7 +155,7 @@ def reservation_reserve(roomname, activityname, day, hour, duration):
     return 200, reservation_id
 
 
-def display_reservation(reservation_id):
+def display_reservation(reservation_id: str):
     # display reservation information from the json file
     # if reservation_id does not exits raise NotFound
     # else return 200, reservation information
@@ -175,17 +174,17 @@ def display_reservation(reservation_id):
     return response.text
 
 
-def read_json(filename):
+def read_json(filename: str):
     with open(filename, "r") as f:
         return json.load(f)
 
 
-def update_json(filename, data):
+def update_json(filename: str, data: dict):
     with open(filename, "w") as f:
         json.dump(data, f, indent=4)
 
 
-def create_json(filename):
+def create_json(filename: str):
     with open(filename, "w") as f:
         json.dump({}, f, indent=4)
 
