@@ -1,17 +1,35 @@
-# network-project
+## Room Reservation
 Room reservation systems using Socket programming
 
+## Server Manager
+This project contains three different server (Room, Activity, Reservation). All servers are created using Server Manager.
 
-## TODO
+This project aims to implement a socket based web application where sockets can communicate with each other.
+Room server and Activity Server performs operations. Reservation Server communicates with both of them to access necessary data
 
-- [x] Room Server
-- [x] Activity Server
-- [x] Reservation Server
-- [ ] Json handler operations
-- [ ] room_server.py reserve_operation fonksiyonu icinde yazan TODO
-- [ ] reservation_server.py display_operation fonksiyonu icinde yazan TODO
+1. Room Server:
+    1. add
+    2. remove
+    3. reserve
+    4. checkavailability
 
-**Json handler fonksiyonlarının içine input olarak ne alıp neyi return edeceklerini yazdım oraya göre implement edilebilir.**
+2. Activity Server:
+    1. add
+    2. remove
+    3. check
+
+3. Reservation Server
+    1. reserve
+    2. listavailability
+    3. display
+
+
+## Features
+
+This project have following features:
+1. Custom Exception Handling
+2. Data Validation (with responses accordingly)
+
 
 ### Port Numbers
 | Server Name | Port Number |
