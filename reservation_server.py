@@ -1,229 +1,185 @@
 from socket import *
-import re
+
 import json_handler
+from exceptions import NotFound
+from models import (
+    DisplayInput,
+    HttpResponse,
+    ListAvailabilityInput,
+    RequestResponse,
+    ReserveInput,
+)
+from utils import parse_input
+from operations import OperationManager
+
 
 serverPort = 8002
 serverSocket = socket(AF_INET, SOCK_STREAM)
-serverSocket.bind(('localhost', serverPort))
+serverSocket.bind(("localhost", serverPort))
 serverSocket.listen(1)
-print('The Reservation server is ready to receive', serverSocket.getsockname())
+print("The Reservation server is ready to receive", serverSocket.getsockname())
 
-days_dict = {"1": "Monday", "2": "Tuesday", "3": "Wednesday", "4": "Thursday", "5": "Friday", "6": "Saturday", "7": "Sunday"}
-servername_to_port = {'room': 8000,
-                      'activity': 8001}
+days_dict = {
+    "1": "Monday",
+    "2": "Tuesday",
+    "3": "Wednesday",
+    "4": "Thursday",
+    "5": "Friday",
+    "6": "Saturday",
+    "7": "Sunday",
+}
+servername_to_port = {"room": 8000, "activity": 8001}
 
-def send_request_to_another_server(servername, url_input):
-    # create a socket and connect to the server
-    # send the request to the server
-    # get the response from the server
-    # close the socket
-    # return the response
+room_not_exists_response = HttpResponse(
+    status_code=404,
+    response_message="Not Found",
+    title="Not Found",
+    body="Room does not exist.",
+)
 
+
+def send_request_to_another_server(servername, url_input) -> RequestResponse:
     serverPort = servername_to_port[servername]
     clientSocket = socket(AF_INET, SOCK_STREAM)
-    clientSocket.connect(('localhost', serverPort))
+    clientSocket.connect(("localhost", serverPort))
     message = f"GET /{url_input} HTTP/1.1\r"
     clientSocket.send(message.encode())
     response = clientSocket.recv(1024)
     response = response.decode()
     clientSocket.close()
+
+    header, message = response.split("\r\n\n")
+
+    response = RequestResponse(header=header, message=message)
+
     return response
 
-def parse_reservation_server_message(message):
-    
-    connection_method = message.split(' ')[0]   # GET or POST
-    
-    if connection_method == 'POST':
-        data = re.search(r'{([\s\S]*?)}', message).group(1) # get the data between { and } from the message.
-        data = data.replace('"', '')    # since the data is in the form of "operation: add, name: room1", we need to remove the " from the data.
-        parameters = {}
-        for key, value in [parameter.split(':') for parameter in data.split(',')]:  # split data from comma and then split each part from colon
-            # remove the spaces from the key and value
-            parameters[key.strip()] = value.strip()
-        try:
-            operation = parameters['operation']
-        except:
-            return None, None   # operation is not found
-        return operation, parameters
-    
-    # get the url from header
-    requested_url = message.split(' ')[1]
-    if requested_url == '/favicon.ico':
-        # requested_url = re.search(r'Referer: (.*)', message).group(1).split('/')[-1]
-        return False, None
-    
-    # parse operation and roomname
-    # split the url http://localhost:12000/add?name=fatih to a dictionary where key is operation add and value is roomname fatih
-    try:
-        operation= requested_url.split('?')[0].split('/')[-1]
-        
-        parameters = {}
-        # get name if operation is add or remove
 
-        parameters_part = requested_url.split('?')[1]
-        splitted_parameters = parameters_part.split('&')
-        
-        for key, value in [parameter.split('=') for parameter in splitted_parameters]:
-            parameters[key] = value
-    except:
-        return None, None
-    return operation, parameters
-    
-def reserve_operation(roomname, activityname, day, hour, duration):
-    # check if activity is available using activity server  (will be done in reservation server)
-    # if activity is not available return 404
-    # else: 
-    # check if room available using room server, reserve it and return 200, save the reservation in json file and create a reservation_id
-    # if room is not available return 404, if input is not valid return 400 (room server will return same status codes)
-    # determine the status codes and write new if statements for them
-    
-    activity_check_response = send_request_to_another_server('activity', f'check?name={activityname}')
-    response_status_code = int(activity_check_response.split(' ')[1])   # get the status code from the response
-    if response_status_code == 404:  # activity server returns 404 if activity is not available
-        title_message = 'Activity Not Exists'
-        body_message = f"Activity {activityname} does not exist."
-        response_message = 'Not Found'
-        return title_message, body_message, response_status_code, response_message      # return the response to the client
+def reserve_operation(input: ReserveInput):
+    activity_response = send_request_to_another_server(
+        "activity", f"check?name={input.activity}"
+    )
+    # activity server returns 404 if activity is not available
+    if activity_response.status_code == 404:
+        return HttpResponse(
+            status_code=activity_response.status_code,
+            response_message="Not Found",
+            title="Activity Not Exists",
+            body=activity_response.body,
+        )
 
-    # check if room is available    add room using room add server, if it cannot add, it will return the corresponding status code
-    # if status code returns 200, create a reservation id and save the reservation in json file
-    # reservation will be saved to json file in the room server, no need to save it here
-    
-    room_check_response = send_request_to_another_server('room', f'reserve?name={roomname}&day={day}&hour={hour}&duration={duration}')
-    room_status_code = int(room_check_response.split(' ')[1])
+    room_response = send_request_to_another_server(
+        "room",
+        f"reserve?name={input.room}&day={input.day}&hour={input.hour}&duration={input.duration}",
+    )
+
     # if room is available it retuns 200, create reservation id and save the reservation in json file
-    if room_status_code == 200: # all conditions are met
-        status_code, reservation_id = json_handler.reservation_reserve(roomname, activityname, day, hour, duration)
-        title_message = 'Reservation Successful'
-        body_message = f'Room {roomname} is reserved for activity {activityname} on {days_dict[day]} at {hour}:00 for {duration} hours.\nYour reservation id is {reservation_id}.'
-        response_message = 'OK'
-        
+    if room_response.status_code == 200:
+        status_code, reservation_id = json_handler.reservation_reserve(
+            input.room, input.activity, input.day, input.hour, input.duration
+        )
+        return HttpResponse(
+            status_code=200,
+            response_message="OK",
+            title="Reservation Successful",
+            body=f"Room {input.room} is reserved for activity {input.activity} on {days_dict[str(input.day)]} at {input.hour}:00 for {input.duration} hours.\nYour reservation id is {reservation_id}.",
+        )
     # if inputs are not valid, room server returns 400
-    elif room_status_code == 400:
-        title_message = 'Error'
-        body_message = f" Invalid input is given."
-        response_message = 'Bad Request'
-    
+    elif room_response.status_code == 400:
+        return HttpResponse(
+            status_code=room_response.status_code,
+            response_message=room_response.response_message,
+            title=room_response.title,
+            body="Invalid input is given.",
+        )
     # if room is not available, room server returns 404
-    else:
-        title_message = 'Forbidden'
-        body_message = f" Room {roomname} is already reserved."
-        response_message = 'Forbidden'
+    return HttpResponse(
+        status_code=room_response.status_code,
+        response_message="Forbidden",
+        title="Forbidden",
+        body=f"Room {input.room} is already reserved.",
+    )
 
-    return title_message, body_message, room_status_code, response_message
 
-def listavailability_operation(roomname, day):
+def listavailability_operation(input: ListAvailabilityInput):
+    if input.day:
+        response = send_request_to_another_server(
+            "room", f"checkavailability?name={input.room}&day={input.day}"
+        )
+        if response.status_code == 404:
+            return room_not_exists_response
 
-    roomname_response = send_request_to_another_server('room', f'checkavailability?name={roomname}&day={day}')
-    header, message = roomname_response.split('\r\n\n')
+        return HttpResponse(
+            status_code=response.status_code,
+            title=response.title,
+            response_message=response.response_message,
+            body=response.body,
+        )
+    body = ""
+    # get response for all days and update body
+    for day in range(1, 8):
+        response = send_request_to_another_server(
+            "room", f"checkavailability?name={input.room}&day={day}"
+        )
+        if response.status_code == 404:
+            return room_not_exists_response
 
-    room_status_code = int(header.split(' ')[1])
-    room_response_message = header.split(' ')[2]
-    # get room server response, parse it and return the response to the client
-    title_message = re.search(r'<TITLE>(.*)<\/TITLE>', message).group(1)
-    body_message = re.search(r'<BODY>(.*)<\/BODY>', message).group(1)
-    
-        
-    return title_message, body_message, room_status_code, room_response_message
+        body += f"On {days_dict[str(day)]}: {response.body} <br>"
 
-def display_operation(reservation_id):
-    #//TODO: day should be converted to Monday, Tuesday... 
-    #//TODO: # day, hour, duration should change to: "When: Friday 10:00-11:00" 
-    
-    status_code, reservation_information = json_handler.display_reservation(reservation_id)
-    
-    if status_code == 200:
-        
-        roomname, activityname, day, hour, duration = reservation_information.split(',')
-        title_message = 'Reservation Information'
-        body_message = f'Room: {roomname}\nActivity: {activityname}\nDay: {days_dict[day]}\nHour: {hour}\nDuration: {duration}'
-        response_message = 'OK'
-        
-    else:
-        title_message = 'Reservation Not Found'
-        body_message = f'Reservation with {reservation_id} id does not exist.'
-        response_message = 'Not Found'
-        
-    return title_message, body_message, status_code, response_message
+    return HttpResponse(
+        status_code=response.status_code,
+        title=response.title,
+        response_message=response.response_message,
+        body=body,
+    )
 
-def create_HTML(operation, parameters):
-    
-    if operation == 'reserve':
-        try:
-            roomname, activityname, day, hour, duration = parameters['room'], parameters['activity'], parameters['day'], parameters['hour'], parameters['duration']
-        except:
-            return None
-        title_message, body_message, status_code, response_message = reserve_operation(roomname, activityname, day, hour, duration)
-    
-    elif operation == 'listavailability':
-        if 'day' in parameters: # if day is given, list availability for that day
-            try:
-                roomname, day = parameters['room'], parameters['day']
-            except:
-                return None
-            title_message, body_message, status_code, response_message = listavailability_operation(roomname, day)
-        else: # if day is not given, list availability for all days
-            final_body_message = '' # send connection for each day, get the response and add it to final_body_message
-            try:
-                roomname = parameters['room']
-            except:
-                return None
-            for i in range(1, 8):   # check availability for all days
-                title_message, body_message, status_code, response_message = listavailability_operation(roomname, i)
-                if status_code == 404:  # if room does not exists
-                    return room_does_not_exists_message()
-                final_body_message += f'On day {days_dict[str(i)]}: {body_message} <br>'
-            body_message = final_body_message
-            
-    elif operation == 'display':
-        try:
-            id = parameters['id']
-        except:
-            return None
-        title_message, body_message, status_code, response_message = display_operation(id)
-    
-    
-    html = f"HTTP/1.1 {status_code} {response_message}\r\n\n<HTML>\n<HEAD>\n<TITLE>{title_message}</TITLE>\n</HEAD>\n<BODY>{body_message}</BODY>\n</HTML>"
-    return html
 
-def create_error_message():
-    title_message = 'Error'
-    body_message = 'Invalid Input'
-    status_code = 400
-    response_message = 'Bad Request'
-    html = f"HTTP/1.1 {status_code} {response_message}\r\n\n<HTML> <HEAD> <TITLE>{title_message}</TITLE> </HEAD> <BODY>{body_message}</BODY> </HTML>"
-    return html
+def display_operation(input: DisplayInput):
+    try:
+        response = json_handler.display_reservation(input.id)
+    except NotFound as e:
+        return HttpResponse(
+            status_code=e.status_code,
+            response_message=e.message,
+            title="Reservation Not Found",
+            body=e.body,
+        )
 
-def room_does_not_exists_message():
-    title_message = 'Not Found'
-    body_message = 'Room does not exists'
-    status_code = 404
-    response_message = 'Not Found'
-    html = f"HTTP/1.1 {status_code} {response_message}\r\n\n<HTML> <HEAD> <TITLE>{title_message}</TITLE> </HEAD> <BODY>{body_message}</BODY> </HTML>"
-    return html
+    return HttpResponse(
+        status_code=200,
+        response_message="OK",
+        title="Reservation Information",
+        body=response,
+    )
 
+
+operation_fn_mapping = {
+    "reserve": reserve_operation,
+    "listavailability": listavailability_operation,
+    "display": display_operation,
+}
+
+input_cls_mapping = {
+    "reserve": ReserveInput,
+    "listavailability": ListAvailabilityInput,
+    "display": DisplayInput,
+}
+
+operation_manager = OperationManager(
+    fn_mappings=operation_fn_mapping, input_cls_mappings=input_cls_mapping
+)
 
 while True:
-    
     connectionSocket, addr = serverSocket.accept()
     message = connectionSocket.recv(1024)
-    print('message received from: ', addr)
-    operation, roomname = parse_reservation_server_message(message.decode())
-    
-    if operation is False:   # if operation is /favicon.ico, wait for next request
+    print("message received from: ", addr)
+    operation, parameters = parse_input(message.decode())
+
+    if operation is False:  # if operation is /favicon.ico, wait for next request
         connectionSocket.close()
         continue
-    
-    if operation is None:   # if operation is not valid
-        connectionSocket.send(create_error_message().encode())  # send error message, wait for next request
-        connectionSocket.close()
-        continue
-    
-    html = create_HTML(operation, roomname)
-    if html is None:    # parameters are not valid
-        connectionSocket.send(create_error_message().encode())
-        connectionSocket.close()
-        continue
-    
+
+    html = operation_manager.create_HTML(operation, parameters)
+
     connectionSocket.send(html.encode())
     connectionSocket.close()

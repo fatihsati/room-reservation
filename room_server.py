@@ -1,198 +1,144 @@
 from socket import *
-import re
+
 import json_handler
+from exceptions import BadRequest, Forbidden, NotFound
+from models import (
+    BAD_REQUEST,
+    HttpResponse,
+    RoomBaseInput,
+    RoomCheckAvailabilityInput,
+    RoomReserveInput,
+)
+from utils import parse_input
+from operations import OperationManager
+
 
 serverPort = 8000
 serverSocket = socket(AF_INET, SOCK_STREAM)
-serverSocket.bind(('localhost', serverPort))
+serverSocket.bind(("localhost", serverPort))
 serverSocket.listen(1)
-print('The Room server is ready to receive', serverSocket.getsockname())
+print("The Room server is ready to receive", serverSocket.getsockname())
 
-days_dict = {"1": "Monday", "2": "Tuesday", "3": "Wednesday", "4": "Thursday", "5": "Friday", "6": "Saturday", "7": "Sunday"}
+days_dict = {
+    "1": "Monday",
+    "2": "Tuesday",
+    "3": "Wednesday",
+    "4": "Thursday",
+    "5": "Friday",
+    "6": "Saturday",
+    "7": "Sunday",
+}
 
-def parse_room_server_message(message):
-    
-    connection_method = message.split(' ')[0]   # GET or POST
-    
-    if connection_method == 'POST':
-        data = re.search(r'{([\s\S]*?)}', message).group(1) # get the data between { and } from the message.
-        data = data.replace('"', '')    # since the data is in the form of "operation: add, name: room1", we need to remove the " from the data.
-        parameters = {}
-        for key, value in [parameter.split(':') for parameter in data.split(',')]:  # split data from comma and then split each part from colon
-            # remove the spaces from the key and value
-            parameters[key.strip()] = value.strip()
-        
-        try:
-            operation = parameters['operation']
-        except:
-            return None, None   # operation is not found
-        return parameters['operation'], parameters
-    
-    # if connection method is GET
-    # get the url from header
-    print(message)
-    requested_url = message.split(' ')[1]
-    if requested_url == '/favicon.ico':
-        return False, None
-    
-    # parse operation and roomname
-    # split the url http://localhost:12000/add?name=fatih to a dictionary where key is operation add and value is roomname fatih
+
+def add_operation(input: RoomBaseInput):
     try:
-        operation= requested_url.split('?')[0].split('/')[-1]
-        
-        parameters = {}
-        
-        parameters_part = requested_url.split('?')[1]
-        splitted_parameters = parameters_part.split('&')
-        
-        for key, value in [parameter.split('=') for parameter in splitted_parameters]:
-            parameters[key] = value
-    except:
-        return None, None   # None,None means that the url is not valid. add?nameroom1 will return None, None since it has no "=" in it. 
-    
-    return operation, parameters
+        result = json_handler.add_room(input.name)
+    except Forbidden as e:
+        return HttpResponse(
+            status_code=e.status_code,
+            response_message=e.message,
+            title="Error",
+            body=e.body,
+        )
+    return HttpResponse(
+        status_code=200,
+        response_message="OK",
+        title="Room Added",
+        body=f"Room with name {input.name} is successfully added.",
+    )
 
-def add_operation(roomname):
-    status_code = json_handler.add_room(roomname)
-    if status_code == 200:   # if room is added
-            title_message = 'Room Added'
-            body_message = f" Room with name {roomname} is successfully added."
-            response_message = 'OK'
-    else:   # if room is already in the list
-        title_message = 'Error'
-        body_message = f" Room with name {roomname} is already in the list."
-        response_message = 'Forbidden'
 
-    return title_message, body_message, status_code, response_message
+def remove_operation(input: RoomBaseInput):
+    try:
+        status_code = json_handler.remove_room(input.name)
+    except Forbidden as e:
+        return HttpResponse(
+            status_code=e.status_code,
+            response_message=e.message,
+            title="Error",
+            body=e.body,
+        )
+    return HttpResponse(
+        status_code=200,
+        response_message="OK",
+        title="Room Removed",
+        body=f"Room with name {input.name} is successfully removed.",
+    )
 
-def remove_operation(roomname):
-    status_code = json_handler.remove_room(roomname)
-    if status_code == 200:   # if room is removed
-        
-        title_message = 'Room Removed'
-        body_message = f" Room with name {roomname} is successfully removed."
-        response_message = 'OK'
-        
-    else:
-        title_message = 'Error'
-        body_message = f" Room with name {roomname} is not found."
-        response_message = 'Forbidden'
-        
-    return title_message, body_message, status_code, response_message
 
-def reserve_operation(roomname, day, hour, duration):
-    # TODO: convert day from 1-7 to monday-sunday
-    # TODO: convert hour from 9-18 to 09:00-18:00
-    
-    status_code = json_handler.reserve_room(roomname, day, hour, duration)
-    if status_code == 200:
-        start_hour = int(hour)
-        end_hour = int(hour) + int(duration)
-        title_message = 'Reservation Successful'
-        body_message = f" Room {roomname} is reserved at {days_dict[day]}, {start_hour}:00 - {end_hour}:00."
-        response_message = 'OK'
-    elif status_code == 400:
-        title_message = 'Error'
-        body_message = f" Invalid input."
-        response_message = 'Bad Request'
-    else:
-        title_message = 'Forbidden'
-        body_message = f" Room {roomname} is already reserved."
-        response_message = 'Forbidden'
-    
-    return title_message, body_message, status_code, response_message
+def reserve_operation(input: RoomReserveInput):
+    try:
+        status_code = json_handler.reserve_room(
+            input.name, input.day, input.hour, input.duration
+        )
+    except BadRequest as e:
+        return BAD_REQUEST
 
-def check_availability_operation(roomname, day):
-    
-    status_code, available_hours = json_handler.check_availability(roomname, day)
-    
-    if status_code == 200:
-        title_message = 'Check Operation Successful'
-        body_message = f" Room {roomname} is available for the following hours: {available_hours}."
-        response_message = 'OK'
-    elif status_code == 400:
-        title_message = 'Error'
-        body_message = f" Invalid input."
-        response_message = 'Bad Request'
-    else:
-        title_message = 'Not Found'
-        body_message = f" Room {roomname} does not exist."
-        response_message = 'Not Found'
-        
-    return title_message, body_message, status_code, response_message
+    except Forbidden as e:
+        return HttpResponse(
+            status_code=e.status_code,
+            response_message=e.message,
+            title="Forbidden",
+            body=e.body,
+        )
+    return HttpResponse(
+        status_code=200,
+        response_message="OK",
+        title="Reservation Successful",
+        body=f"Room {input.name} is reserved at {days_dict[str(input.day)]}, {input.hour}:00 - {int(input.hour) + int(input.duration)}:00.",
+    )
 
-def create_HTML(operation, parameters):
-    
-    if operation == 'add':
-        try:
-            name = parameters['name']
-        except:
-            return None
-        title_message, body_message, status_code, response_message = add_operation(name)
-    
-    elif operation == 'remove':
-        try:
-            name = parameters['name']
-        except:
-            return None
-        title_message, body_message, status_code, response_message = remove_operation(name)
-    
-    elif operation == 'reserve':
-        try:
-            roomname, day, hour, duration = parameters['name'], parameters['day'], parameters['hour'], parameters['duration']
-        except:
-            return None
-        title_message, body_message, status_code, response_message = reserve_operation(roomname, day, hour, duration)
-    
-    elif operation == 'checkavailability':
-        try:
-            name, day = parameters['name'], parameters['day']
-        except:
-            return None
-        title_message, body_message, status_code, response_message =  check_availability_operation(name, day)
-    
-    else:
-        title_message = 'Error'
-        body_message = "Invalid operation."
-        status_code = 404
-        response_message = 'Not Found'
-    
-    html = f"HTTP/1.1 {status_code} {response_message}\r\n\n<HTML> <HEAD> <TITLE>{title_message}</TITLE> </HEAD> <BODY>{body_message}</BODY> </HTML>"
-    return html
 
-def create_error_message():
-    title_message = 'Error'
-    body_message = 'Invalid Input'
-    status_code = 400
-    response_message = 'Bad Request'
-    html = f"HTTP/1.1 {status_code} {response_message}\r\n\n<HTML> <HEAD> <TITLE>{title_message}</TITLE> </HEAD> <BODY>{body_message}</BODY> </HTML>"
-    return html
+def check_availability_operation(input: RoomCheckAvailabilityInput):
+    try:
+        response = json_handler.check_availability(input.name, input.day)
+    except NotFound as e:
+        return HttpResponse(
+            status_code=e.status_code,
+            response_message=e.message,
+            title="Not Found",
+            body=e.body,
+        )
 
+    return HttpResponse(
+        status_code=200,
+        response_message="OK",
+        title="Check Operation Successful",
+        body=f"Room {input.name} is available for the following hours: {response}.",
+    )
+
+
+operation_fn_mapping = {
+    "add": add_operation,
+    "remove": remove_operation,
+    "reserve": reserve_operation,
+    "checkavailability": check_availability_operation,
+}
+
+input_cls_mapping = {
+    "add": RoomBaseInput,
+    "remove": RoomBaseInput,
+    "reserve": RoomReserveInput,
+    "checkavailability": RoomCheckAvailabilityInput,
+}
+
+operation_manager = OperationManager(
+    fn_mappings=operation_fn_mapping, input_cls_mappings=input_cls_mapping
+)
 
 while True:
-    
     connectionSocket, addr = serverSocket.accept()
     message = connectionSocket.recv(1024)
-    
-    # print(f'Message is received from {addr}. Message is {message.decode()}')
-    print(f'Message is received from {addr}.')
 
-    operation, parameters = parse_room_server_message(message.decode())
-    if operation is False:   # if message is favicon.ico close the connection
+    print(f"Message is received from {addr}.")
+
+    operation, parameters = parse_input(message.decode())
+    # if message is favicon.ico close the connection
+    if operation is False:
         connectionSocket.close()
         continue
 
-    if operation is None:   # if operation is None, it means that the message is not valid
-        connectionSocket.send(create_error_message().encode())  # send error message, wait for next request
-        connectionSocket.close()
-        continue
-    
-    html = create_HTML(operation, parameters)
-    
-    if html == None:    # parameters are not valid
-        connectionSocket.send(create_error_message().encode())
-        connectionSocket.close()
-        continue
-    
+    html = operation_manager.create_HTML(operation, parameters)
+
     connectionSocket.send(html.encode())
     connectionSocket.close()
