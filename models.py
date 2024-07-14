@@ -11,10 +11,7 @@ class HttpResponse(BaseModel):
 
     @property
     def html(self):
-        return f"HTTP/1.1 {self.status_code} {self.response_message}\r\n\n\
-            <HTML> <HEAD> <TITLE>{self.title}</TITLE> </HEAD> \
-                <BODY>{self.body}</BODY> \
-                    </HTML>"
+        return f"HTTP/1.1 {self.status_code} {self.response_message}\r\n\n<HTML> <HEAD> <TITLE>{self.title}</TITLE> </HEAD><BODY>{self.body}</BODY></HTML>"
 
 
 BAD_REQUEST = HttpResponse(

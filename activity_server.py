@@ -1,4 +1,4 @@
-from socket import *
+
 
 import json_handler
 from exceptions import Forbidden, NotFound
@@ -6,12 +6,13 @@ from models import ActivityBase, HttpResponse
 from utils import parse_input
 from operations import OperationManager
 
+from server_manager import Server
+
 
 serverPort = 8001
-serverSocket = socket(AF_INET, SOCK_STREAM)
-serverSocket.bind(("localhost", serverPort))
-serverSocket.listen(1)
-print("The Activity server is ready to receive", serverSocket.getsockname())
+serverSocket = Server('localhost', serverPort)
+serverSocket.listen()
+print("The Activity server is ready to receive", serverSocket.socket.getsockname())
 
 
 def add_operation(input: ActivityBase):
@@ -81,7 +82,7 @@ operation_manager = OperationManager(
 )
 
 while True:
-    connectionSocket, addr = serverSocket.accept()
+    connectionSocket, addr = serverSocket.socket.accept()
     message = connectionSocket.recv(1024)
     print("Message received from: ", addr)
     operation, parameters = parse_input(message.decode())

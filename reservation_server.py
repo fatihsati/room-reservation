@@ -11,13 +11,12 @@ from models import (
 )
 from utils import parse_input
 from operations import OperationManager
-
+from server_manager import Server
 
 serverPort = 8002
-serverSocket = socket(AF_INET, SOCK_STREAM)
-serverSocket.bind(("localhost", serverPort))
-serverSocket.listen(1)
-print("The Reservation server is ready to receive", serverSocket.getsockname())
+serverSocket = Server('localhost', serverPort)
+serverSocket.listen()
+print("The Reservation server is ready to receive", serverSocket.socket.getsockname())
 
 days_dict = {
     "1": "Monday",
@@ -170,7 +169,7 @@ operation_manager = OperationManager(
 )
 
 while True:
-    connectionSocket, addr = serverSocket.accept()
+    connectionSocket, addr = serverSocket.socket.accept()
     message = connectionSocket.recv(1024)
     print("message received from: ", addr)
     operation, parameters = parse_input(message.decode())
